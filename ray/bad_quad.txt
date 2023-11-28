@@ -1,0 +1,156 @@
+typedef struct node {
+    Circle *content;
+    Node* child_nw;
+    Node* child_ne;
+    Node* child_sw;
+    Node* child_se;
+    Point2 origin;
+    uint32_t depth;
+} Node;
+
+void init_root_node(Node *root, const float width, const float height)
+{
+    root->content = NULL;
+    root->child_nw = NULL;
+    root->child_ne = NULL;
+    root->child_sw = NULL;
+    root->child_se = NULL;
+
+    Point2 origin = {};
+    origin.x = 0.0;
+    origin.y = 0.0;
+
+    root->origin = origin;
+    root->depth = 1;
+}
+
+void init_node(Node *node, Point2 origin, const uint32_t depth)
+{
+    node->content = NULL;
+    node->child_nw = NULL;
+    node->child_ne = NULL;
+    node->child_sw = NULL;
+    node->child_se = NULL;
+    node->origin = origin;
+    node->depth = depth;
+}
+
+bool check_containment(const float check_x, const float check_y, const Point2 origin, const float width, const float height)
+{
+    bool x = origin.x <= check_x && check_x < origin.x + width;
+    bool y = origin.y <= check_y && check_y < origin.y + height;
+    return x && y;
+}
+
+void subdivide(Node* node)
+{
+    float parent_width = IMAGE_WIDTH / node->depth;
+    float parent_height = IMAGE_HEIGHT / node->depth;
+    Point2 parent_origin = node->origin;
+
+    float child_width = parent_width / 2;
+    float child_height = parent_height / 2;
+    uint32_t child_depth = node->depth + 1;
+
+    Node nw = {};
+    Node ne = {};
+    Node sw = {};
+    Node se = {};
+
+    Point2 origin_ne = {};
+    Point2 origin_sw = {};
+    Point2 origin_se = {};
+
+    origin_ne.x = parent_origin.x + child_width;
+    origin_ne.y = parent_origin.y;
+    origin_sw.x = parent_origin.x;
+    origin_sw.y = parent_origin.y + child_height;
+    origin_se.x = parent_origin.x + child_width;
+    origin_se.y = parent_origin.y + child_height;
+
+    init_node(&nw, node->origin, child_depth);
+    init_node(&ne, origin_ne, child_depth);
+    init_node(&sw, origin_sw, child_depth);
+    init_node(&se, origin_se, child_depth);
+
+    node->child_nw = &nw;
+    node->child_ne = &ne;
+    node->child_sw = &sw;
+    node->child_se = &se;
+
+    Circle *object = node->content;
+    bool nw_contains = check_containment(object->origin.x, object->origin.y, node->child_nw->origin, child_width, child_height);
+    bool ne_contains = check_containment(object->origin.x, object->origin.y, node->child_ne->origin, child_width, child_height);
+    bool sw_contains = check_containment(object->origin.x, object->origin.y, node->child_sw->origin, child_width, child_height);
+    bool se_contains = check_containment(object->origin.x, object->origin.y, node->child_se->origin, child_width, child_height);
+    if (nw_contains)
+    {
+        nw.content = object;
+    } else if (ne_contains)
+    {
+        ne.content = object;
+    } else if (sw_contains)
+    {
+        sw.content = object;
+    } else if (se_contains)
+    {
+        se.content = object;
+    }
+}
+
+void insert_object(Node* node, Circle* object)
+{ 
+    Node* current = node;
+    while (true) 
+    {
+        if (!current->child_nw)
+        {   
+            float child_depth = current->depth + 1;
+            float child_width = IMAGE_WIDTH / child_depth;
+            float child_height = IMAGE_WIDTH / child_depth;
+
+            bool nw = check_containment(object->origin.x, object->origin.y, node->child_nw->origin, child_width, child_height);
+            bool ne = check_containment(object->origin.x, object->origin.y, node->child_ne->origin, child_width, child_height);
+            bool sw = check_containment(object->origin.x, object->origin.y, node->child_sw->origin, child_width, child_height);
+            bool se = check_containment(object->origin.x, object->origin.y, node->child_se->origin, child_width, child_height);
+
+            if (nw)
+            {
+                current = current->child_nw;
+                continue;
+            } else if (ne)
+            {
+                current = current->child_ne;
+                continue;
+            } else if (sw)
+            {
+                current = current->child_sw;
+                continue;
+            } else if (se)
+            {
+                current = current->child_se;
+                continue;
+            }
+        }
+
+        if (!current->content) 
+        {
+            current->content = object;
+            return;
+        }
+    
+        subdivide(current);
+    }
+}
+
+void cleanup_tree(Node* node)
+{
+    // this should only be used after everything is inserted
+    while (true)
+    {
+        if (!node->child_nw)
+        {
+            
+        }
+    }
+}

@@ -1,0 +1,121 @@
+#include <stdlib.h>
+#include <types.h>
+#include <stdbool.h>
+
+/*
+    kind of wack
+    if x is -1 than element is a pointer to the first child
+    and y is the depth of the current node
+
+    if x is not -1 then element is a pointer to the circle object
+    and x and y are the origin of the aabb
+
+    kind of like cpu opcodes
+*/
+
+const float IMAGE_WIDTH = 800.0;
+const float IMAGE_HEIGHT = 600.0;
+
+typedef struct node
+{
+    uint32_t element;
+    float x, y;
+} Node;
+
+void init_root_node(Node *node)
+{
+    node->element = NULL;
+    node->x = IMAGE_WIDTH;
+    node->y = IMAGE_HEIGHT;
+}
+
+void subdivide(Node *node, const uint32_t parent_depth)
+{
+    float bounds_x = node->x;
+    float bounds_y = node->y;
+    node->x = -1;
+    node->y = (float)parent_depth;
+
+    uint32_t new_depth = parent_depth + 1;
+    float new_width = IMAGE_WIDTH / new_depth;
+    float new_height = IMAGE_HEIGHT / new_depth;
+
+    /*
+    base ptr = nw
+    +1 = ne
+    +2 = sw
+    +3 = se
+    */
+    Node* children_memory = (Node *)malloc(sizeof(Node) * 4);
+
+    uint32_t origin_offset_table_x[] = {1, 2, 1, 2};
+    uint32_t origin_offset_table_y[] = {1, 1, 2, 2};
+    for (uint32_t offset = 0; offset < 4; offset++)
+    {
+        Node node = *(children_memory + offset);
+        node.x = bounds_x * *(origin_offset_table_x + offset);
+        node.y = bounds_y * *(origin_offset_table_y + offset);
+        node.element = NULL;
+    }
+    node->element = children_memory;
+}
+
+void insert(Node *node, Circle *object)
+{
+    Node *current = node;
+    uint32_t depth = 1;
+    while (true)
+    {
+        if (node->x == -1)
+        {
+            for (uint32_t offset = 0; offset < 4; offset++)
+            {
+                Node *child = (Node *)(current->element + offset);
+
+                float child_bounds_x = child->x;
+                float child_bounds_y = child->y;
+                float child_bounds_width = IMAGE_WIDTH / node->y;
+                float child_bounds_height = IMAGE_HEIGHT / node->y;
+
+                bool child_x_contains = child_bounds_x <= object->origin.x && object->origin.x < child_bounds_x + child_bounds_width;
+                bool child_y_contains = child_bounds_y <= object->origin.y && object->origin.y < child_bounds_y + child_bounds_height;
+
+                if (child_x_contains && child_y_contains)
+                {
+                    current = child;
+                    depth++;
+                    break;
+                }
+            }
+            continue;
+        }
+
+        if (!node->element)
+        {
+            node->element = (uint32_t)object;
+            return;
+        }
+
+        subdivide(node, depth);
+    }
+}
+
+// void cleanup(Node *root)
+// {
+//     Node *current = root;
+//     while (true)
+//     {
+//         if (root->x == -1)
+//         {
+//             for (uint32_t offset = 0; offset < 4; offset++)
+//             {
+//                 Node *child = (Node *)(current->element + offset);
+
+//                 if (!child->element)
+//                 {
+
+//                 }
+//             }
+//         } 
+//     }
+// }
