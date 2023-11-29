@@ -145,6 +145,11 @@ float get_euclidian_distance(Point3 a, Point3 b)
     return sqrt(x + y + z);
 }
 
+float get_magnitude(Vec3 vec)
+{
+    return sqrt(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+}
+
 
 // uint32_t write_data_to_image(uint32_t **image_data)
 // {
@@ -204,27 +209,39 @@ Vec3 scale_VP3(Vec3 vec, float scale)
     return new_vec;
 }
 
+bool object_contains_ray(Point3 ray_origin, Point3 object_origin, float object_radius)
+{
+    bool x_contains = (object_origin.x - object_radius) < ray_origin.x && ray_origin.x < (object_origin.x + object_radius);
+    bool y_contains = (object_origin.y - object_radius) < ray_origin.y && ray_origin.y < (object_origin.y + object_radius);
+    bool z_contains = (object_origin.z - object_radius) < ray_origin.z && ray_origin.z < (object_origin.z + object_radius);
+    return x_contains && y_contains && z_contains;
+}
+
 uint32_t cast_ray(
     Ray ray,
     Circle *objects,
     uint32_t num_objects)
 {
-
     uint32_t color_code = 0b00000000000000000000000000000000;
     for (uint32_t i = 0; i < num_objects; i++)
     {
         Circle object = objects[i];
         Vec3 L = subtract_VP3(object.origin, ray.origin);
+
+        float threshold_angle = arctan(object.radius / get_magnitude(L));
+        float rangle = arccos(dot_VP3(ray.dir, L) / (get_magnitude(L) * get_magnitude(ray.dir)));
+        if ((threshold_angle < rangle) || (rangle < threshold_angle) && object_contains_ray(ray.origin, object.origin, object.radius))
+        {   
+            continue;
+        }
         Vec3 tca = scale_VP3(ray.dir, dot_VP3(L, ray.dir));
         float d = get_euclidian_distance(tca, object.origin);
         if (object.radius < d)
         {
             continue;
         }
-        float thc = sqrt(object.radius * object.radius - d * d);    
-        
+        float thc = sqrt(object.radius * object.radius - d * d);
     }
-
     return color_code;
 }
 
