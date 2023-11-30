@@ -9,7 +9,10 @@ const float IMAGE_WIDTH = 800.0;
 const float IMAGE_HEIGHT = 600.0;
 const uint32_t NUM_OBJECTS = 1;
 const uint32_t BACKGROUND_COLOR = 0b0;
-const uint32_t NODE_CONTENT_LIMIT = 4;
+const uint32_t NODE_CONTENT_LIMIT = 1;
+
+const float ROOT_NODE_X = 0.0;
+const float ROOT_NODE_Y = 0.0;
 
 // const float CAMERA_X = IMAGE_WIDTH / 2.0;
 // const float CAMERA_Y = IMAGE_HEIGHT / 2.0;
@@ -24,90 +27,124 @@ const uint32_t NODE_CONTENT_LIMIT = 4;
     if x is not -1 then element is a pointer to the circle object
     and x and y are the origin of the aabb
 
-    kind of like cpu opcodes
+    kind of like cisc instructions
 */
+
+// 96 bits
+// typedef struct node
+// {
+//     uint32_t element;
+//     float x, y;
+// } Node;
 
 typedef struct node
 {
     uint32_t element;
-    float x, y;
+    char sign;
 } Node;
 
 void init_root_node(Node *node)
 {
     node->element = NULL;
-    node->x = IMAGE_WIDTH;
-    node->y = IMAGE_HEIGHT;
+    node->sign = -1;
 }
 
-void subdivide(Node *node, const uint32_t parent_depth)
+void init_blank_node(Node *node)
 {
-    float bounds_x = node->x;
-    float bounds_y = node->y;
-    node->x = -1;
-    node->y = (float)parent_depth;
+    node->element = NULL;
+    node->sign = 0;
+}
 
-    uint32_t new_depth = parent_depth + 1;
-    float new_width = IMAGE_WIDTH / new_depth;
-    float new_height = IMAGE_HEIGHT / new_depth;
+void get(Node *root, Point2 point)
+{
+    Node *current = root;
+    while (true)
+    {
+        if (-1 == current->sign)
+        {
 
-    /*
-    base ptr = nw
-    +1 = ne
-    +2 = sw
-    +3 = se
-    */
-    Node* children_memory = (Node *)malloc(sizeof(Node) * 4);
+        }
 
-    uint32_t origin_offset_table_x[] = {1, 2, 1, 2};
-    uint32_t origin_offset_table_y[] = {1, 1, 2, 2};
+        return current->element;
+
+
+
+
+
+
+    }
+}
+
+void subdivide(Node** leaves, Node *node, const uint32_t parent_depth)
+{
+    Circle* object = (Circle *)node->element;
+    node->sign = -1;
+
+    Node* children = (Node *)malloc(sizeof(Node) * 4);
+    init_blank_node(children);
+    init_blank_node(children + 1);
+    init_blank_node(children + 2);
+    init_blank_node(children + 3);
+    node->element = children;
+
     for (uint32_t offset = 0; offset < 4; offset++)
     {
-        Node node = *(children_memory + offset);
-        node.x = bounds_x * *(origin_offset_table_x + offset);
-        node.y = bounds_y * *(origin_offset_table_y + offset);
-        node.element = NULL;
+        Node *child = (Node *)(children + offset);
+        float child_width = IMAGE_WIDTH / (1 << parent_depth);
+        float child_height = IMAGE_HEIGHT / (1 << parent_depth);
+        float child_x = ROOT_NODE_X + child_width * ((1 << parent_depth) - 1);
+        float child_y = ROOT_NODE_Y + child_height * ((1 << parent_depth) - 1);
+
+        bool child_contains_x = (child_x <= object->origin.x) && (object->origin.x < (child_x + child_width));
+        bool child_contains_y = (child_y <= object->origin.y) && (object->origin.y < (child_y + child_height));
+
+        if (child_contains_x && child_contains_y)
+        {
+            child->element = object;
+            return;
+        }
     }
-    node->element = children_memory;
 }
 
 void insert(Node *node, Circle *object)
 {
     Node *current = node;
-    uint32_t depth = 1;
+    uint32_t current_depth = 1; // depth of the node we are on
     while (true)
     {
-        if (node->x == -1)
+        // if the node has children
+        if (-1 == node->sign)
         {
+            // we loop through each of the children
             for (uint32_t offset = 0; offset < 4; offset++)
             {
                 Node *child = (Node *)(current->element + offset);
+                float child_width = IMAGE_WIDTH / (1 << current_depth);
+                float child_height = IMAGE_HEIGHT / (1 << current_depth);
+                float child_x = ROOT_NODE_X + child_width * ((1 << current_depth) - 1);
+                float child_y = ROOT_NODE_Y + child_height * ((1 << current_depth) - 1);
 
-                float child_bounds_x = child->x;
-                float child_bounds_y = child->y;
-                float child_bounds_width = IMAGE_WIDTH / node->y;
-                float child_bounds_height = IMAGE_HEIGHT / node->y;
+                bool child_contains_x = (child_x <= object->origin.x) && (object->origin.x < (child_x + child_width));
+                bool child_contains_y = (child_y <= object->origin.y) && (object->origin.y < (child_y + child_height));
 
-                bool child_x_contains = child_bounds_x <= object->origin.x && object->origin.x < child_bounds_x + child_bounds_width;
-                bool child_y_contains = child_bounds_y <= object->origin.y && object->origin.y < child_bounds_y + child_bounds_height;
-
-                if (child_x_contains && child_y_contains)
+                if (child_contains_x && child_contains_y)
                 {
                     current = child;
-                    depth++;
+                    current_depth++;
                     break;
                 }
             }
             continue;
         }
 
-        if (!node->element)
+        if (NULL == node->element)
         {
             node->element = (uint32_t)object;
+            node->sign = 1;
             return;
         }
 
-        subdivide(node, depth);
+        subdivide(current, current_depth);
     }
 }
 
@@ -116,7 +153,7 @@ void insert(Node *node, Circle *object)
 //     Node *current = root;
 //     while (true)
 //     {
-//         if (root->x == -1)
+//         if (root->sign == -1)
 //         {
 //             for (uint32_t offset = 0; offset < 4; offset++)
 //             {
@@ -124,7 +161,7 @@ void insert(Node *node, Circle *object)
 
 //                 if (!child->element)
 //                 {
-
+                    
 //                 }
 //             }
 //         } 
@@ -220,20 +257,15 @@ bool object_contains_ray(Point3 ray_origin, Point3 object_origin, float object_r
 uint32_t cast_ray(
     Ray ray,
     Circle *objects,
-    uint32_t num_objects)
+    uint32_t num_objects,
+    Light *lights
+    uint32_t num_lights)
 {
     uint32_t color_code = 0b00000000000000000000000000000000;
     for (uint32_t i = 0; i < num_objects; i++)
     {
         Circle object = objects[i];
         Vec3 L = subtract_VP3(object.origin, ray.origin);
-
-        float threshold_angle = arctan(object.radius / get_magnitude(L));
-        float rangle = arccos(dot_VP3(ray.dir, L) / (get_magnitude(L) * get_magnitude(ray.dir)));
-        if ((threshold_angle < rangle) || (rangle < threshold_angle) && object_contains_ray(ray.origin, object.origin, object.radius))
-        {   
-            continue;
-        }
         Vec3 tca = scale_VP3(ray.dir, dot_VP3(L, ray.dir));
         float d = get_euclidian_distance(tca, object.origin);
         if (object.radius < d)
@@ -241,6 +273,7 @@ uint32_t cast_ray(
             continue;
         }
         float thc = sqrt(object.radius * object.radius - d * d);
+
     }
     return color_code;
 }
@@ -259,8 +292,11 @@ int main()
     //     return -1;
     // }
 
-    
+    Node quadtree_root = {};
+    init_root_node(&quadtree_root);
 
+
+    float min_z = 99999999999999999999.0;
     Circle *objects = (Circle *)malloc(sizeof(Circle) * NUM_OBJECTS);
     for (uint32_t i = 0; i < NUM_OBJECTS; i++)
     {
@@ -273,6 +309,11 @@ int main()
         object.radius = 10.0;
         object.color_code = 0b00000000000000000000000011111111;
         objects[i] = object;
+
+        if (origin.z < min_z)
+        {
+            min_z = origin.z;
+        }
     }
 
     for (uint32_t y = 0; y < IMAGE_HEIGHT; y++)
