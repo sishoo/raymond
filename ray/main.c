@@ -30,18 +30,64 @@ const float ROOT_NODE_Y = 0.0;
     kind of like cisc instructions
 */
 
-// 96 bits
-// typedef struct node
-// {
-//     uint32_t element;
-//     float x, y;
-// } Node;
+/*
+    Ideas:
+        - use a pool
+            - pros:
+                - all in one place
+                - dont need a guess
+            - cons:
+                - 
+
+
+
+
+
+
+
+        - use batch allocations:
+            - 
+
+
+
+
+*/
 
 typedef struct node
 {
     uint32_t element;
     char sign;
 } Node;
+
+typedef struct node_pool {
+    uint32_t right, left, offset;
+} NodePool;
+
+uint32_t predict_num_nodes(uint32_t num)
+{
+    // the worst case is 3x+1, so we use that
+    // 0 and 1 are special cases
+
+    if ((num == 0) || (num == 1))
+    {
+        return 1;
+    }
+    
+    return (3 * num) + 1;
+}
+
+void init_node_pool(NodePool* pool, uint32_t predicted_num)
+{
+    pool->offset = 0;
+    Node *pool_mem = (Node *)malloc(predicted_num * sizeof(Node));
+    pool->right = pool_mem;
+    pool->left = predicted_num * sizeof(Node);
+}
+
+void make_new_node(NodePool *pool, )
+{
+
+}
 
 void init_root_node(Node *node)
 {
@@ -66,12 +112,6 @@ void get(Node *root, Point2 point)
         }
 
         return current->element;
-
-
-
-
-
-
     }
 }
 
@@ -167,12 +207,6 @@ void insert(Node *node, Circle *object)
 //         } 
 //     }
 // }
-
-
-
-
-
-
 
 float get_euclidian_distance(Point3 a, Point3 b)
 {
@@ -291,6 +325,13 @@ int main()
     // if (result < 0) {
     //     return -1;
     // }
+
+
+    uint32_t predicted_num_of_nodes = predict_num_nodes(NUM_OBJECTS);
+
+    NodePool node_pool = {};
+    init_node_pool(&node_pool, )
+
 
     Node quadtree_root = {};
     init_root_node(&quadtree_root);
