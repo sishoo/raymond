@@ -132,6 +132,7 @@ void insert(Node *node, Circle *object)
 
 
 THE ISSUE IS THAT YOU ARE ISTNATNLY OUTSIDE OF THE 32 BIT ADDRESS SPACE 
+use -mx32 on gcc to compile with 32 bit pointers
 
 int main()
 {
