@@ -61,11 +61,12 @@ void subdivide(Node *node, const uint32_t parent_depth)
     init_blank_node(children + 1);
     init_blank_node(children + 2);
     init_blank_node(children + 3);
+    printf("pointer to children: %p\n", children);
     node->element = (uint32_t)children;
 
     for (uint32_t offset = 0; offset < 4; offset++)
     {
-        Node *child = (children + offset);
+        Node *child_ptr = (children + offset);
         float child_width = IMAGE_WIDTH / (1 << parent_depth);
         float child_height = IMAGE_HEIGHT / (1 << parent_depth);
         float child_x = ROOT_NODE_X + child_width * ((1 << parent_depth) - 1);
@@ -77,7 +78,7 @@ void subdivide(Node *node, const uint32_t parent_depth)
        
         if (child_contains_x && child_contains_y)
         {
-            child->element = object;
+            child_ptr->element = (uint32_t)object;
             return;
         }
     }
@@ -90,7 +91,7 @@ void insert(Node *node, Circle *object)
     while (true)
     {
         // if the node has children
-        if (1 == node->has_children)
+        if (1 == current->has_children)
         {
             // we loop through each of the children
             for (uint32_t offset = 0; offset < 4; offset++)
@@ -114,9 +115,11 @@ void insert(Node *node, Circle *object)
             continue;
         }
 
-        if (NULL == node->element)
+        if (NULL == current->element)
         {
-            node->element = (uint32_t)object;
+            printf("full info: %p\n", object);
+            current->element = (uint32_t)object;
+            printf("lossy: %u\n", (uint32_t)object);
             return;
         }
 
@@ -124,37 +127,64 @@ void insert(Node *node, Circle *object)
     }
 }
 
+
+
+
+
+THE ISSUE IS THAT YOU ARE ISTNATNLY OUTSIDE OF THE 32 BIT ADDRESS SPACE 
+
 int main()
 {
     Node root;
     init_root_node(&root);
 
-    for (uint32_t i = 0; i < NUM_OBJECTS; i++)
+    Circle *objects = malloc(sizeof(Circle) * NUM_OBJECTS);
+    for (uint32_t offset = 0; offset < NUM_OBJECTS; offset++)
     {
-        Circle object = {};
-        Point3 origin = {};
-        // origin.x = 400.0;
-        // origin.y = 300.0;
-        // origin.z = 10.0;
-        // object.origin = origin;
-        // object.radius = 10.0;
-
-        srand(i);
-        origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
-        origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
-        origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
-        object.origin = origin;
-        object.radius = 10.0;
-
+        Circle object = *(objects + offset);
+        object.origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
+        object.origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
+        object.origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
+        object.radius = 69.0;
         object.color_code = 0b00000000000000000000000011111111;
 
-        printf("iteration: %i\n", i);
-        printf("pointer to current object: %p\n", &object);
-        float start_time = (float)clock() / CLOCKS_PER_SEC;
-        insert(&root, &object);
-        float end_time = (float)clock() / CLOCKS_PER_SEC;
-        printf("time elapsed: %f\n", end_time - start_time);
-    }
+        printf("Object number: %i\n", offset);
+        printf("pointer to current object: %p\n", objects + offset);
+        double start_time = (double)clock() / CLOCKS_PER_SEC;
+        insert(&root, objects + offset);
+        double end_time = (double)clock() / CLOCKS_PER_SEC;
+        printf("time elapsed: %lf\n", end_time - start_time);
+        printf("\n");
+    }   
+
+
+
+    // for (uint32_t i = 0; i < NUM_OBJECTS; i++)
+    // {
+    //     Circle object = {};
+    //     Point3 origin = {};
+    //     // origin.x = 400.0;
+    //     // origin.y = 300.0;
+    //     // origin.z = 10.0;
+    //     // object.origin = origin;
+    //     // object.radius = 10.0;
+
+    //     srand(i);
+    //     origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
+    //     origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
+    //     origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
+    //     object.origin = origin;
+    //     object.radius = 10.0;
+
+    //     object.color_code = 0b00000000000000000000000011111111;
+
+    //     printf("iteration: %i\n", i);
+    //     printf("pointer to current object: %p\n", &object);
+    //     float start_time = (float)clock() / CLOCKS_PER_SEC;
+    //     insert(&root, &object);
+    //     float end_time = (float)clock() / CLOCKS_PER_SEC;
+    //     printf("time elapsed: %f\n", end_time - start_time);
+    // }
 
     return 0;
 }
