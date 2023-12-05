@@ -89,10 +89,11 @@ void insert(Node *node, Circle *object)
     Node *current = node;
     uint32_t current_depth = 1; // depth of the node we are on
     while (true)
-    {
+    {   
         // if the node has children
         if (1 == current->has_children)
         {
+            printf("x: %f, y: %f\n", object->origin.x, object->origin.y);
             // we loop through each of the children
             for (uint32_t offset = 0; offset < 4; offset++)
             {
@@ -112,14 +113,13 @@ void insert(Node *node, Circle *object)
                     break;
                 }
             }
-            continue;
+            printf("The node has children but somehow none of them contain the point???\n");
+            exit(-1);
         }
 
         if (NULL == current->element)
         {
-            printf("full info: %p\n", object);
             current->element = (uint32_t)object;
-            printf("lossy: %u\n", (uint32_t)object);
             return;
         }
 
@@ -127,13 +127,8 @@ void insert(Node *node, Circle *object)
     }
 }
 
-
-
-
-
-THE ISSUE IS THAT YOU ARE ISTNATNLY OUTSIDE OF THE 32 BIT ADDRESS SPACE 
-use -mx32 on gcc to compile with 32 bit pointers
-
+// magic command:
+// gcc -m32  main.c -o main
 int main()
 {
     Node root;
@@ -143,6 +138,7 @@ int main()
     for (uint32_t offset = 0; offset < NUM_OBJECTS; offset++)
     {
         Circle object = *(objects + offset);
+        srand(offset);
         object.origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
         object.origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
         object.origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
