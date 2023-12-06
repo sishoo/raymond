@@ -6,7 +6,7 @@
 
 const float IMAGE_WIDTH = 800.0;
 const float IMAGE_HEIGHT = 600.0;
-const uint32_t NUM_OBJECTS = 1;
+const uint32_t NUM_OBJECTS = 2;
 const uint32_t NODE_CONTENT_LIMIT = 1;
 const float ROOT_NODE_X = 0.0;
 const float ROOT_NODE_Y = 0.0;
@@ -30,7 +30,6 @@ typedef struct circle
 
 // element is by default shifted over by 16
 // when you go to deref shift it back
-
 // if the first bit is one the node has children
 typedef struct node
 {
@@ -47,87 +46,53 @@ void init_blank_node(Node *node)
     node->element = 0ULL;
 }
 
-void subdivide(uint64_t node, const uint32_t parent_depth)
+void subdivide(Node *node, const uint32_t parent_depth)
 {
-    Circle *object = (Circle *)node;
+    printf("SFSF\n");
+    Circle *object = node->element;
     Node *children = malloc(sizeof(Node) * 4);
     init_blank_node(children);
     init_blank_node(children + 1);
     init_blank_node(children + 2);
     init_blank_node(children + 3);
-    printf("pointer to children: %p\n", children);
-    node = ((uint64_t)children << 16) | 1;
+    node = children;
 
-    for (uint32_t offset = 0; offset < 4; offset++)
-    {
-        Node *child_ptr = (children + offset);
-        float child_width = IMAGE_WIDTH / (1 << parent_depth);
-        float child_height = IMAGE_HEIGHT / (1 << parent_depth);
-        float child_x = ROOT_NODE_X + child_width * ((1 << parent_depth) - 1);
-        float child_y = ROOT_NODE_Y + child_height * ((1 << parent_depth) - 1);
-
-        bool child_contains_x = (child_x <= object->origin.x) && (object->origin.x < (child_x + child_width));
-        bool child_contains_y = (child_y <= object->origin.y) && (object->origin.y < (child_y + child_height));
-
-        if (child_contains_x && child_contains_y)
-        {
-            child_ptr->element = ((uint64_t)object << 16) | 1;
-            return;
-        }
-    }
+    float child_width = IMAGE_WIDTH / (1 << parent_depth);
+    float child_height = IMAGE_HEIGHT / (1 << parent_depth);
+    uint32_t offset_table[2][2] = {{3, 1}, {2, 0}};
+    bool child_contains_x = (ROOT_NODE_X <= object->origin.x) && (object->origin.x < (ROOT_NODE_X + child_width));
+    bool child_contains_y = (ROOT_NODE_Y <= object->origin.y) && (object->origin.y < (ROOT_NODE_Y + child_height));
+    uint32_t offset = offset_table[child_contains_x][child_contains_y];
+    (children + offset)->element = object;
+    return;
 }
 
 void insert(Node *node, Circle *object)
 {
-    uint64_t current = (uint64_t)node;
+    Node *current_node = node;
     uint32_t current_depth = 1; // depth of the node we are on
     while (true)
     {
         // if the node has children
-        if (current & 1)
+        if (current_node->element & 1)
         {
-            printf("x: %f, y: %f\n", object->origin.x, object->origin.y);
-
             float child_width = IMAGE_WIDTH / (1 << current_depth);
             float child_height = IMAGE_HEIGHT / (1 << current_depth);
-            
             uint32_t offset_table[2][2] = {{3, 1}, {2, 0}};
             bool child_contains_x = (ROOT_NODE_X <= object->origin.x) && (object->origin.x < (ROOT_NODE_X + child_width));
             bool child_contains_y = (ROOT_NODE_Y <= object->origin.y) && (object->origin.y < (ROOT_NODE_Y + child_height));
             uint32_t offset = offset_table[child_contains_x][child_contains_y];
-            current = ((Node *)(current >> 16) + offset)->element;
-
-
-            // // we loop through each of the children
-            // uint32_t offset_table_x[] = {0, 1, 0, 1};
-            // uint32_t offset_table_y[] = {0, 0, 1, 1}
-            // for (uint32_t offset = 0; offset < 4; offset++)
-            // {    
-            //     Node *child = (Node *)((current >> 16) + offset);
-            //     float child_x = ROOT_NODE_X + child_width * offset_table_x[offset];
-            //     float child_y = ROOT_NODE_Y + child_height * offset_table_y[offset];
-            //     bool child_contains_x = (child_x <= object->origin.x) && (object->origin.x < (child_x + child_width));
-            //     bool child_contains_y = (child_y <= object->origin.y) && (object->origin.y < (child_y + child_height));
-
-            //     if (child_contains_x && child_contains_y)
-            //     {
-            //         current = (uint64_t)child << 16;
-            //         current_depth++;
-            //         break;
-            //     }
-            // }
-            printf("The node has children but somehow none of them contain the point???\n");
-            exit(-1);
+            current_node =  (current_node->element >> 16);
+            continue;
         }
 
-        if (current == 0)
+        if (current_node->element == 0)
         {
-            current = ((uint64_t)object << 16) | 1;
+            current_node->element = (uint64_t)object << 16;
             return;
         }
 
-        printf("current depth: %lu\n", current_depth);
-        subdivide(current, current_depth);
+        subdivide(current_node, current_depth);
     }
 }
 
@@ -136,25 +101,55 @@ int main()
     Node root;
     init_root_node(&root);
 
-    Circle *objects = malloc(sizeof(Circle) * NUM_OBJECTS);
-    for (uint32_t offset = 0; offset < NUM_OBJECTS; offset++)
+    double total_time = 0;
+
+    for (uint32_t num = 0; num < NUM_OBJECTS; num++)
     {
-        Circle object = *(objects + offset);
-        srand(offset);
+        Circle object = {};
+        srand(num);
         object.origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
         object.origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
         object.origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
-        object.radius = 69.0;
+        object.radius = 10.0;
         object.color_code = 0b00000000000000000000000011111111;
 
-        printf("Object number: %i\n", offset);
-        printf("pointer to current object: %p\n", objects + offset);
+        printf("Object number: %i\n", num);
         double start_time = (double)clock() / CLOCKS_PER_SEC;
-        insert(&root, objects + offset);
+        insert(&root, &object);
         double end_time = (double)clock() / CLOCKS_PER_SEC;
-        printf("time elapsed: %lf\n", end_time - start_time);
-        printf("\n");
+        total_time += end_time - start_time;
+        printf("time elapsed: %lf\n\n", end_time - start_time);
     }
+
+    printf("total time elapsed for %lu objects: %lf\n", NUM_OBJECTS, total_time);
+
+
+
+
+
+
+    // Circle *objects = malloc(sizeof(Circle) * NUM_OBJECTS);
+    // for (uint32_t offset = 0; offset < NUM_OBJECTS; offset++)
+    // {
+    //     Circle object = *(objects + offset);
+    //     srand(offset);
+    //     object.origin.x = (float)rand() / (float)(RAND_MAX / IMAGE_WIDTH);
+    //     object.origin.y = (float)rand() / (float)(RAND_MAX / IMAGE_HEIGHT);
+    //     object.origin.z = (float)rand() / (float)(RAND_MAX / 69.0);
+    //     object.radius = 69.0;
+    //     object.color_code = 0b00000000000000000000000011111111;
+
+    //     // printf("Object number: %i\n", offset);
+    //     // printf("pointer to current object: %p\n", objects + offset);
+    //     double start_time = (double)clock() / CLOCKS_PER_SEC;
+    //     insert(&root,);
+    //     double end_time = (double)clock() / CLOCKS_PER_SEC;
+    //     total_time += end_time - start_time;
+    //     // printf("time elapsed: %lf\n", end_time - start_time);
+    //     // printf("\n");
+    // }
+
+    
 
     // for (uint32_t i = 0; i < NUM_OBJECTS; i++)
     // {
